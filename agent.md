@@ -15,7 +15,7 @@ src/
     MediaRow.jsx      # Horizontal scrollable row of MediaCards
     Navbar.jsx        # Sidebar navigation (currently unused, kept for reference)
     PersonSearch.jsx  # Autocomplete search for actors/directors with multi-select
-    Player.jsx        # Viduki iframe embed with server fallback
+    Player.jsx        # Iframe embed player — 6 servers (VidSrc ×2, Viduki ×4), fullscreen overlay
     Skeleton.jsx      # Shimmer loading placeholders
     TopBar.jsx        # Top navigation bar with logo and links
     FilterPanel.jsx   # Reusable filter panel component
@@ -30,7 +30,7 @@ src/
 
   services/
     tmdb.js           # All TMDB API calls, image URL builders
-    watchProgress.js   # localStorage wrapper for Viduki watch progress events
+    watchProgress.js   # localStorage wrapper for VidSrc/Viduki watch progress events
     constants.js       # Hardcoded language and country lists for filters
 
   App.jsx             # Router setup
@@ -54,27 +54,34 @@ Key endpoints used:
 - `/{type}/{id}/recommendations` — similar content on watch page
 
 ### Video playback
-Streams come from **Viduki** (`viduki.net`), embedded as an iframe. No stream URLs touch our code — Viduki handles resolution, server selection, subtitles, and DRM internally.
+Streams come from **VidSrc** and **Viduki**, embedded as iframes. No stream URLs touch our code — the providers handle resolution, server selection, and DRM internally.
 
-The Player component (`Player.jsx`) accepts an `apiTier` prop (0-3) mapping to Viduki's four API levels:
-- API 1: Multi Server
-- API 2: Multi Language (our default, index 0 in `API_TIERS`)
-- API 3: Multi Embeds
-- API 4: Premium
+The Player component (`Player.jsx`) supports 6 servers across two providers:
 
-URL pattern:
+| Index | Provider | Details |
+|-------|----------|---------|
+| 0 | VidSrc | vidsrc.sh — params: `?ds_lang=en`, `?color=` |
+| 1 | Viduki | API 2 (Multi Language) — params: `?color=` |
+| 2 | Viduki | API 1 (Multi Server) — **default** |
+| 3 | Viduki | API 3 (Multi Embeds) |
+| 4 | Viduki | API 4 (Premium) |
+| 5 | VidSrc | vidsrc.sbs — alt mirror, params: `?sub=en`, `?color=` |
+
+URL patterns:
 ```
-https://viduki.net/{api}/movie/{tmdb_id}?color={hex}
-https://viduki.net/{api}/tv/{tmdb_id}/{season}/{episode}?color={hex}
+VidSrc:  https://{domain}/embed/{type}/{tmdb_id}/{season}/{episode}?color=E50914&ds_lang=en
+Viduki:  https://viduki.net/{api}/{type}/{tmdb_id}/{season}/{episode}?color=E50914
 ```
 
 The `color` parameter themes the player UI (we use `E50914`, red).
 
+**Fullscreen workaround:** Viduki's native fullscreen button is broken in cross-origin iframes. Player.jsx includes an invisible 70×100px clickable overlay anchored to the bottom-right corner that calls `requestFullscreen()` on the wrapper element from our side. PiP is not possible on iframes — requires a `<video>` element.
+
 ### Watch progress
-Viduki posts `MEDIA_DATA` events via `postMessage` to the parent window. We listen for these in `Player.jsx` and store progress in `localStorage` under the key `vidukinet-Progress`. The `watchProgress.js` service reads this for the "Continue Watching" row on the home page.
+Both providers post progress events via `postMessage`. Viduki sends `MEDIA_DATA`, VidSrc sends `PLAYER_EVENT` with `player_progress`/`player_duration`/`player_status`. We listen for both in `Player.jsx` and store progress in `localStorage` under the key `watcher-progress`. The `watchProgress.js` service reads this for the "Continue Watching" row on the home page.
 
 ### Server fallback
-Viduki posts `viduki:all-servers-failed` when a tier has no working server. If the parent isn't controlling the tier (no `apiTier` prop), the Player auto-advances to the next tier. On the Watch page, the user controls the tier via a dropdown, so auto-fallback is disabled.
+Viduki posts `viduki:all-servers-failed` when a tier has no working server. If the parent isn't controlling the tier (no `apiTier` prop), the Player auto-advances to the next server index. On the Watch page, the user controls the server via a dropdown, so auto-fallback is disabled.
 
 ## Routing
 
@@ -134,15 +141,14 @@ Genre 16 = Animation, origin country JP = Japan. This catches most anime but may
 
 ## Adding a New Embed Provider
 
-To add an alternative to Viduki:
+To add an alternative to VidSrc/Viduki:
 
-1. In `Player.jsx`, add the new provider's URL builder alongside the existing `buildUrl` function
-2. Extend the `API_TIERS` array or add a separate provider toggle
-3. On the Watch page, add it to the server dropdown
-4. Match the iframe `allow` permissions — at minimum: `autoplay; fullscreen; picture-in-picture`
-5. If the provider sends `postMessage` events, add handlers in the `useEffect`
+1. In `Player.jsx`, add the provider to the `SERVERS` array with its URL builder logic in `buildUrl()`
+2. On the Watch page, the server dropdown auto-populates from the server count
+3. Match the iframe `allow` permissions — at minimum: `autoplay; fullscreen; picture-in-picture`
+4. If the provider sends `postMessage` events, add handlers in the `useEffect`
 
-The key requirement: the provider must accept a TMDB ID (or IMDB ID) and return a working player via iframe. If it requires a proprietary resolver with encryption (like Flixer's `dragonballzfans.xyz`), it won't work as a simple embed.
+The key requirement: the provider must accept a TMDB ID (or IMDB ID) and return a working player via iframe.
 
 ## Infinite Scroll
 
@@ -174,7 +180,7 @@ SPA routing requires a redirect rule: all paths should serve `index.html`. Verce
 
 ## Common Issues
 
-**Player not loading:** Viduki may be down (Cloudflare issues). Try a different server tier. Check if `viduki.net` loads in a new tab.
+**Player not loading:** VidSrc or Viduki may be down. Try a different server from the dropdown. VidSrc is not behind Cloudflare; Viduki is.
 
 **TMDB 401 errors:** API key is missing or wrong. Check `.env` exists, has no quotes around the key, and you restarted `npm run dev` after editing it.
 
