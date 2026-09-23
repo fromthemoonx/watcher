@@ -71,9 +71,9 @@ export const getTopRated = (type = "movie") =>
 export const getMovieDetails = (id) =>
   get(`/movie/${id}`, { append_to_response: "videos,credits" });
 
-/** Full TV show details including videos and credits */
+/** Full TV show details including videos, credits, and external IDs (for IMDB) */
 export const getTvDetails = (id) =>
-  get(`/tv/${id}`, { append_to_response: "videos,credits" });
+  get(`/tv/${id}`, { append_to_response: "videos,credits,external_ids" });
 
 /** Get similar/recommended titles */
 export const getRecommendations = (type, id) =>

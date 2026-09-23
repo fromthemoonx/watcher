@@ -1,19 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getTvDetails, getSeasonDetails, getMovieDetails, getRecommendations, img } from "../services/tmdb";
+import { saveWatchEntry } from "../services/watchProgress";
 import Player from "../components/Player";
 import MediaCard from "../components/MediaCard";
 
 /**
- * Watch page — scrollable, player takes ~90vh at top.
- * Below: server selector, episode list (TV), recommendations.
- *
- * Routes:
- *   /watch/movie/:id
- *   /watch/tv/:id/:season/:episode
+ * Watch page — 100vh player with cursor-hide behavior.
+ * Back button + title fade out after 3s of inactivity.
+ * Scroll down for server selector, episodes (TV), recommendations.
  */
 
-const SERVER_NAMES = ["Server 1", "Server 2", "Server 3", "Server 4"];
+const SERVER_NAMES = [
+  "Server 1",   /* VidSrc */
+  "Server 2",   /* Viduki Multi Language */
+  "Server 3",   /* Viduki Multi Server */
+  "Server 4",   /* Viduki Multi Embeds */
+  "Server 5",   /* Viduki Premium */
+  "Server 6",   /* VidSrc Alt */
+];
+
+const IDLE_TIMEOUT = 3000;
 
 export default function Watch() {
   const { type, id, season, episode } = useParams();
@@ -26,7 +33,36 @@ export default function Watch() {
   const [episodes, setEpisodes] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(seasonNum);
   const [recommendations, setRecommendations] = useState([]);
-  const [serverIndex, setServerIndex] = useState(0);
+  /** Default: Server 3 (Viduki Multi Server) */
+  const [serverIndex, setServerIndex] = useState(2);
+
+  /* Cursor idle detection */
+  const [showControls, setShowControls] = useState(true);
+  const idleTimer = useRef(null);
+  const playerRef = useRef(null);
+
+  const resetIdle = useCallback(() => {
+    setShowControls(true);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setShowControls(false), IDLE_TIMEOUT);
+  }, []);
+
+  useEffect(() => {
+    const playerEl = playerRef.current;
+    if (!playerEl) return;
+
+    playerEl.addEventListener("mousemove", resetIdle);
+    playerEl.addEventListener("mouseenter", resetIdle);
+    playerEl.addEventListener("mouseleave", () => setShowControls(false));
+
+    idleTimer.current = setTimeout(() => setShowControls(false), IDLE_TIMEOUT);
+
+    return () => {
+      playerEl.removeEventListener("mousemove", resetIdle);
+      playerEl.removeEventListener("mouseenter", resetIdle);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  }, [resetIdle]);
 
   /* Fetch details + recommendations */
   useEffect(() => {
@@ -34,6 +70,12 @@ export default function Watch() {
     fetchDetails.then((data) => {
       setDetails(data);
       document.title = `${data.title || data.name} - Watcher`;
+      saveWatchEntry({
+        id, type,
+        title: data.title || data.name,
+        poster_path: data.poster_path,
+        backdrop_path: data.backdrop_path,
+      });
     }).catch(console.error);
 
     getRecommendations(type, id)
@@ -61,18 +103,17 @@ export default function Watch() {
 
   return (
     <div className="watch-page">
-      {/* ─── Top bar with back button + now playing ─── */}
-      <div className="watch-topbar">
-        <Link to={`/${type}/${id}`} className="watch-back">← Back</Link>
-        <span className="watch-now-playing">
-          {type === "tv"
-            ? `${title} — S${seasonNum}E${episodeNum}${currentEp?.name ? `: ${currentEp.name}` : ""}`
-            : title}
-        </span>
-      </div>
+      {/* ─── Player area — 100vh, cursor-hide ─── */}
+      <div className="watch-player" ref={playerRef}>
+        <div className={`watch-overlay ${showControls ? "visible" : ""}`}>
+          <Link to={`/${type}/${id}`} className="watch-back">← Back</Link>
+          <span className="watch-now-playing">
+            {type === "tv"
+              ? `${title} — S${seasonNum}E${episodeNum}${currentEp?.name ? `: ${currentEp.name}` : ""}`
+              : title}
+          </span>
+        </div>
 
-      {/* ─── Player — 90vh ─── */}
-      <div className="watch-player">
         <Player
           type={type}
           tmdbId={id}
@@ -82,10 +123,8 @@ export default function Watch() {
         />
       </div>
 
-      {/* ─── Below player: controls ─── */}
+      {/* ─── Below player — scroll down to see ─── */}
       <div className="watch-below">
-
-        {/* Next / Prev for TV */}
         {type === "tv" && (
           <div className="watch-nav">
             <button className="watch-nav-btn" disabled={!hasPrev}
