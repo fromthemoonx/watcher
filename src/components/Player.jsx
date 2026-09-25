@@ -5,9 +5,9 @@ import { saveProgress } from "../services/watchProgress";
  * Player component — supports VidSrc, Viduki via iframe embed.
  *
  * Server index mapping:
- *   0 = VidSrc (vidsrc.sh)
- *   1 = Viduki API 2 (Multi Language)
- *   2 = Viduki API 1 (Multi Server) — DEFAULT
+ *   0 = Viduki API 1 (Multi Server) — DEFAULT
+ *   1 = VidSrc (vidsrc.sh)
+ *   2 = Viduki API 2 (Multi Language)
  *   3 = Viduki API 3 (Multi Embeds)
  *   4 = Viduki API 4 (Premium)
  *   5 = VidSrc Alt (vidsrc.sbs)
@@ -23,12 +23,12 @@ import { saveProgress } from "../services/watchProgress";
 
 const COLOR = "E50914";
 /** Default server index — Viduki API 1 (Multi Server) */
-const DEFAULT_SERVER = 2;
+const DEFAULT_SERVER = 0;
 
 const SERVERS = [
+  { provider: "viduki", api: 1 },
   { provider: "vidsrc", domain: "vidsrc.sh" },
   { provider: "viduki", api: 2 },
-  { provider: "viduki", api: 1 },
   { provider: "viduki", api: 3 },
   { provider: "viduki", api: 4 },
   { provider: "vidsrc", domain: "vidsrc.sbs" },

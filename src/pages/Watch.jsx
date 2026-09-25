@@ -33,8 +33,8 @@ export default function Watch() {
   const [episodes, setEpisodes] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(seasonNum);
   const [recommendations, setRecommendations] = useState([]);
-  /** Default: Server 3 (Viduki Multi Server) */
-  const [serverIndex, setServerIndex] = useState(2);
+  /** Default: Server 1 (Viduki Multi Server) */
+  const [serverIndex, setServerIndex] = useState(0);
 
   /* Cursor idle detection */
   const [showControls, setShowControls] = useState(true);
@@ -105,15 +105,6 @@ export default function Watch() {
     <div className="watch-page">
       {/* ─── Player area — 100vh, cursor-hide ─── */}
       <div className="watch-player" ref={playerRef}>
-        <div className={`watch-overlay ${showControls ? "visible" : ""}`}>
-          <Link to={`/${type}/${id}`} className="watch-back">← Back</Link>
-          <span className="watch-now-playing">
-            {type === "tv"
-              ? `${title} — S${seasonNum}E${episodeNum}${currentEp?.name ? `: ${currentEp.name}` : ""}`
-              : title}
-          </span>
-        </div>
-
         <Player
           type={type}
           tmdbId={id}
@@ -125,6 +116,7 @@ export default function Watch() {
 
       {/* ─── Below player — scroll down to see ─── */}
       <div className="watch-below">
+        <Link to={`/${type}/${id}`} className="watch-back-btn">← Back to Details</Link>
         {type === "tv" && (
           <div className="watch-nav">
             <button className="watch-nav-btn" disabled={!hasPrev}

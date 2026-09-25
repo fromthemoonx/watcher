@@ -11,7 +11,7 @@ import { SkeletonHero } from "../components/Skeleton";
 
 /**
  * Details page — movie/TV info page.
- * Layout top to bottom: backdrop+info → trailer → cast/crew tabs → episodes (TV)
+ * Layout top to bottom: backdrop+info → episodes (TV) → trailer → cast/crew tabs
  * "Watch Now" navigates to dedicated /watch page.
  */
 export default function Details() {
@@ -129,6 +129,52 @@ export default function Details() {
             </div>
           </div>
         </div>
+
+        {/* ─── Episodes (TV only) — shown first for easy navigation ─── */}
+        {type === "tv" && details.seasons?.length > 0 && (
+          <section className="details-section episodes-section">
+            <div className="episodes-header">
+              <h2 className="section-title">Episodes</h2>
+              <select
+                className="season-select"
+                value={selectedSeason}
+                onChange={(e) => setSelectedSeason(Number(e.target.value))}
+              >
+                {details.seasons
+                  .filter((s) => s.season_number >= 1)
+                  .map((s) => (
+                    <option key={s.id} value={s.season_number}>
+                      Season {s.season_number}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="episodes-list">
+              {episodes.map((ep) => (
+                <Link
+                  key={ep.id}
+                  to={`/watch/tv/${id}/${selectedSeason}/${ep.episode_number}`}
+                  className="episode-card"
+                >
+                  <span className="episode-number">{ep.episode_number}</span>
+                  <div className="episode-thumb">
+                    {ep.still_path ? (
+                      <img src={img(ep.still_path, "w342")} alt={ep.name} loading="lazy" />
+                    ) : (
+                      <div className="episode-thumb-placeholder" />
+                    )}
+                  </div>
+                  <div className="episode-info">
+                    <h3 className="episode-title">{ep.name || `Episode ${ep.episode_number}`}</h3>
+                    {ep.overview && <p className="episode-overview">{ep.overview}</p>}
+                    {ep.runtime && <span className="episode-runtime">{ep.runtime}m</span>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ─── Trailer section ─── */}
         {trailer && (
@@ -267,52 +313,6 @@ export default function Details() {
             </div>
           )}
         </section>
-
-        {/* ─── Episodes (TV only) ─── */}
-        {type === "tv" && details.seasons?.length > 0 && (
-          <section className="details-section episodes-section">
-            <div className="episodes-header">
-              <h2 className="section-title">Episodes</h2>
-              <select
-                className="season-select"
-                value={selectedSeason}
-                onChange={(e) => setSelectedSeason(Number(e.target.value))}
-              >
-                {details.seasons
-                  .filter((s) => s.season_number >= 1)
-                  .map((s) => (
-                    <option key={s.id} value={s.season_number}>
-                      Season {s.season_number}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            <div className="episodes-list">
-              {episodes.map((ep) => (
-                <Link
-                  key={ep.id}
-                  to={`/watch/tv/${id}/${selectedSeason}/${ep.episode_number}`}
-                  className="episode-card"
-                >
-                  <span className="episode-number">{ep.episode_number}</span>
-                  <div className="episode-thumb">
-                    {ep.still_path ? (
-                      <img src={img(ep.still_path, "w342")} alt={ep.name} loading="lazy" />
-                    ) : (
-                      <div className="episode-thumb-placeholder" />
-                    )}
-                  </div>
-                  <div className="episode-info">
-                    <h3 className="episode-title">{ep.name || `Episode ${ep.episode_number}`}</h3>
-                    {ep.overview && <p className="episode-overview">{ep.overview}</p>}
-                    {ep.runtime && <span className="episode-runtime">{ep.runtime}m</span>}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );
